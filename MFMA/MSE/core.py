@@ -37,6 +37,12 @@ class AgentState(object):
         self.phi = 0
         # Movable
         self.movable = True
+        self.crash = False
+        self.reach = False
+        # target x coordinate
+        self.target_x   = 1
+        # target y coordinate
+        self.target_y   = 1
 
 # action of the agent
 class Action(object):
@@ -59,11 +65,12 @@ class Agent(object):
         self.init_x     = -1   # init x coordinate
         self.init_y     = -1   # init y coordinate
         self.init_theta = 0    # init theta
-        self.init_vel_b    = 0    # init velocity of back point
+        self.init_vel_b = 0    # init velocity of back point
         self.init_phi   = 0    # init front wheel deflection
         self.init_movable = True # init movable state
-        self.target_x   = 1    # target x coordinate
-        self.target_y   = 1    # target y coordinate
+        self.init_target_x = 1 # init target x coordinate
+        self.init_target_y = 1 # init target y coordinate
+
         if agent_prop is not None:
             for k,v in agent_prop.items():
                 self.__dict__[k] = v
@@ -72,11 +79,6 @@ class Agent(object):
         self.state = AgentState()
         self.action = Action()
         self.color = [0,0,0]
-
-        # crash into sth
-        self.crash = False
-        # crash into sth
-        self.reach = False
         #temp laser state
         self.laser_state = np.array([self.R_laser]*self.N_laser)
 
@@ -92,8 +94,8 @@ class Agent(object):
             self.state.vel_b = self.init_vel_b
             self.state.phi   = self.init_phi
             self.state.movable     = self.init_movable
-        self.crash = False
-        self.reach = False
+            self.crash = False
+            self.reach = False
         self.laser_state = np.array([self.R_laser]*self.N_laser)
 
     def check_AA_collisions(self,agent_b):
@@ -103,7 +105,7 @@ class Agent(object):
 
     def check_reach(self):
         max_dist = self.R_reach**2
-        at_dist = (self.state.x - self.target_x)**2 + (self.state.y - self.target_y)**2
+        at_dist = (self.state.x - self.state.target_x)**2 + (self.state.y - self.state.target_y)**2
         return at_dist<=max_dist
         
     def laser_agent_agent(self,agent_b):
@@ -166,7 +168,10 @@ class Agent(object):
                 else:
                     dist = (x2*y1-x1*y2)/(temp)
                 if dist > 0:
+                    c = dist
+                    b = l_laser[laser_idx]
                     l_laser[laser_idx] = min(l_laser[laser_idx],dist)
+                    a = l_laser[laser_idx]
         return l_laser
 
 # multi-agent world
@@ -195,7 +200,11 @@ class World(object):
         self.total_time = 0
         for agent in self.agents:
             for k in agent.state.__dict__.keys():
+                if k == 'reach' or k == 'crash':
+                    continue
                 agent.state.__dict__[k] = agent.__dict__['init_'+k]
+            agent.state.crash = False
+            agent.state.reach = False
         self._reset_render()
         return True
 
@@ -205,7 +214,7 @@ class World(object):
             agent.action.ctrl_phi = action[1]
 
     def get_state(self):
-        return [agent.state for agent in self.agents]
+        return (self.total_time,[agent.state for agent in self.agents])
     
     def set_state(self,states):
         for agent,state in zip(self.agents,states):
@@ -214,13 +223,14 @@ class World(object):
     
     def get_obs(self):
         obs_data = {'time':self.total_time,'obs_data':[]}
+        self.update_laser_state()
         for idx_a in range(len(self.agents)):
             agent_data = []
             agent_data.append(self.agents[idx_a].state.x)
             agent_data.append(self.agents[idx_a].state.y)
             agent_data.append(self.agents[idx_a].state.theta)
-            agent_data.append(self.agents[idx_a].target_x)
-            agent_data.append(self.agents[idx_a].target_y)
+            agent_data.append(self.agents[idx_a].state.target_x)
+            agent_data.append(self.agents[idx_a].state.target_y)
             agent_data.append(self.agents[idx_a].laser_state)
             obs_data['obs_data'].append(np.hstack(agent_data))
         return obs_data
@@ -239,6 +249,15 @@ class World(object):
         for agent in self.agents:
             agent.state.vel_b = np.clip(agent.action.ctrl_vel, -1.0, 1.0)*agent.K_vel if agent.state.movable else 0
             agent.state.phi   = np.clip(agent.action.ctrl_phi, -1.0, 1.0)*agent.K_phi if agent.state.movable else 0
+    
+    def update_laser_state(self):
+        for idx_a,agent_a in enumerate(self.agents):
+            agent_a.laser_state = np.array([agent_a.R_laser]*agent_a.N_laser)
+            for idx_b,agent_b in enumerate(self.agents):
+                if idx_a == idx_b:
+                    continue
+                l_laser = agent_a.laser_agent_agent(agent_b)
+                agent_a.laser_state = np.min(np.vstack([agent_a.laser_state,l_laser]),axis = 0)
 
     # integrate physical state
     def integrate_state(self):
@@ -271,23 +290,16 @@ class World(object):
             agent.state.x = _xb + math.cos(_theta)*_L/2.0
             agent.state.y = _yb + math.sin(_theta)*_L/2.0
             agent.state.theta = _theta
-        for idx_a,agent_a in enumerate(self.agents):
-            agent_a.laser_state = np.array([agent_a.R_laser]*agent_a.N_laser)
-            for idx_b,agent_b in enumerate(self.agents):
-                if idx_a == idx_b:
-                    continue
-                l_laser = agent_a.laser_agent_agent(agent_b)
-                agent_a.laser_state = np.min(np.vstack([agent_a.laser_state,l_laser]),axis = 0)
-
+        
     def check_collisions(self):
         for ia, agent_a in enumerate(self.agents):
-            if agent_a.crash :
+            if agent_a.state.crash :
                 continue
             for ib, agent_b in enumerate(self.agents):
                 if ia==ib :
                     continue
                 if agent_a.check_AA_collisions(agent_b) :
-                    agent_a.crash = True
+                    agent_a.state.crash = True
                     agent_a.state.movable = False
                     break
     
@@ -295,7 +307,7 @@ class World(object):
         for agent in self.agents:
             reach = agent.check_reach()
             if reach :
-                agent.reach = True
+                agent.state.reach = True
                 agent.state.movable = False
     
     def _reset_render(self):
@@ -366,7 +378,6 @@ class World(object):
 
                 self.agent_geom_list.append(agent_geom)
 
-
             self.viewer.geoms = []
             for agent_geom in self.agent_geom_list:
                 self.viewer.add_geom(agent_geom['target_circle'][0])
@@ -375,15 +386,15 @@ class World(object):
                 self.viewer.add_geom(agent_geom['car'][0])
                 self.viewer.add_geom(agent_geom['front_line'][0])
                 self.viewer.add_geom(agent_geom['back_line'][0])
-
+        
+        self.update_laser_state()
         for agent,agent_geom in zip(self.agents,self.agent_geom_list):
             
             for idx,laser_line in enumerate(agent_geom['laser_line']):
                     laser_line[1].set_scale(agent.laser_state[idx],agent.laser_state[idx]) 
             agent_geom['front_line'][1].set_rotation(agent.state.phi)
-            agent_geom['target_circle'][1].set_translation(agent.target_x,agent.target_y)
+            agent_geom['target_circle'][1].set_translation(agent.state.target_x,agent.state.target_y)
             agent_geom['total_xform'].set_rotation(agent.state.theta)
             agent_geom['total_xform'].set_translation(agent.state.x,agent.state.y)
             
-        
         return self.viewer.render(return_rgb_array = mode=='rgb_array')

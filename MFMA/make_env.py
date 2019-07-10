@@ -39,5 +39,5 @@ def make_env(name,senario,cfg):
     senario_dict = parse_senario(senario)
     if name is 'MSE':
         back_end = MSE_backend.MSE_backend(senario_dict)
-    env = MF_env.MultiFidelityEnv(senario_dict['common'],back_end)
+    env = MF_env.MultiFidelityEnv(senario_dict,back_end)
     return env
