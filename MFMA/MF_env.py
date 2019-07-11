@@ -2,6 +2,7 @@ from  gym import Env
 import copy
 import numpy as np
 import math
+import time
 from .basic import Agent,Action,AgentState
 
 class MultiFidelityEnv(Env):
@@ -13,6 +14,7 @@ class MultiFidelityEnv(Env):
         self.reset_mode = senario_dict['common']['reset_mode']
         self.field_range = senario_dict['common']['field_range']
         self.ref_state_list = []
+        self.total_time = 0
         for (_,grop) in self.senario_dict['agent_groups'].items():
             for agent_prop in grop:
                 agent = Agent(agent_prop)
@@ -77,7 +79,10 @@ class MultiFidelityEnv(Env):
 
     def step(self,action):
         self.backend.set_action(action)
-        self.new_time,self.new_state = self.backend.get_state()
+        self.backend.go_on()
+        time.sleep(0.01)
+        self.backend.pause()
+        self.new_state = self.backend.get_state()
 
         obs = self.backend.get_obs()
         reward = self._calc_reward()
@@ -103,15 +108,17 @@ class MultiFidelityEnv(Env):
                     enable_tmp = True
             if enable_tmp :
                 self.backend.set_state(state_list,enable_list)
-        info = {}
-        self.old_time,self.old_state = copy.deepcopy((self.new_time,self.new_state))
+        info = {'time_end': self.total_time>self.time_limit}
+        self.old_state = copy.deepcopy(self.new_state)
+        self.total_time+=1
         return obs,reward,done,info
 
     def reset(self):
+        self.backend.pause()
         self.backend.reset()
-        self.backend.go_on()
         obs = self.backend.get_obs()
-        self.old_time ,self.old_state = self.backend.get_state()
+        self.old_state = self.backend.get_state()
+        self.total_time = 0
         return obs
 
     def close(self):

@@ -11,7 +11,7 @@ default_agent: &default_agent # default setting
   init_movable: true
 
 common:
-  use_gui : false
+  use_gui : False
   dt : 0.1
   time_limit : 1000.0    # maximal time for one episode
   #reset_mode : random

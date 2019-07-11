@@ -213,7 +213,7 @@ class World(object):
             agent.action.ctrl_phi = action[1]
 
     def get_state(self):
-        return (self.total_time,[agent.state for agent in self.agents])
+        return [agent.state for agent in self.agents]
     
     def set_state(self,enable_list,states):
         for enable,agent,state in zip(enable_list,self.agents,states):
