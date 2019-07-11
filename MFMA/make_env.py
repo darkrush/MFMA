@@ -1,6 +1,8 @@
 import yaml
 from .MSE import MSE_backend
-from . import MF_env
+from .MF_env import MultiFidelityEnv
+
+
 def parse_senario(senario_file):
     with open(senario_file) as f:
         raw_senario_dict = yaml.load(f,Loader=yaml.FullLoader)
@@ -39,5 +41,5 @@ def make_env(name,senario,cfg):
     senario_dict = parse_senario(senario)
     if name is 'MSE':
         back_end = MSE_backend.MSE_backend(senario_dict)
-    env = MF_env.MultiFidelityEnv(senario_dict,back_end)
+    env = MultiFidelityEnv(senario_dict,back_end)
     return env

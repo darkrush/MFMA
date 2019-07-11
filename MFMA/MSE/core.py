@@ -176,7 +176,7 @@ class Agent(object):
 
 # multi-agent world
 class World(object):
-    def __init__(self,agent_groups):
+    def __init__(self,agent_groups,cfg = None):
         
         # list of agents and entities (can change at execution-time!)
         self.agents = []
@@ -188,10 +188,8 @@ class World(object):
             agent.color = hsv2rgb(360.0/len(self.agents)*idx,1.0,1.0)
         # simulation timestep
         self.dt = 0.1
-        self.N = 1
-        self.action_space = None
-        self.observation_space = None
-        self.use_gui = True
+        if cfg is not None:
+            self.dt = cfg['dt']
         self.cam_range = 4
         self.viewer = None
         self.total_time = 0
@@ -208,16 +206,18 @@ class World(object):
         self._reset_render()
         return True
 
-    def set_action(self,actions):
-        for agent,action in zip(self.agents,actions):
+    def set_action(self,enable_list,actions):
+        for enable,agent,action in zip(enable_list,self.agents,actions):
+            if not enable: continue
             agent.action.ctrl_vel = action[0]
             agent.action.ctrl_phi = action[1]
 
     def get_state(self):
         return (self.total_time,[agent.state for agent in self.agents])
     
-    def set_state(self,states):
-        for agent,state in zip(self.agents,states):
+    def set_state(self,enable_list,states):
+        for enable,agent,state in zip(enable_list,self.agents,states):
+            if not enable :continue
             for k in agent.state.__dict__.keys():
                 agent.state.__dict__[k] = state.__dict__[k]
     
@@ -315,8 +315,6 @@ class World(object):
 
     # render environment
     def render(self, mode='human'):
-        if not self.use_gui :
-            return []
         if self.viewer is None:
             from . import rendering 
             self.viewer = rendering.Viewer(800,800)
