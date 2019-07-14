@@ -50,6 +50,11 @@ class Action(object):
         self.ctrl_vel = 0 # ctrl_vel ∈ [-1,1]
         self.ctrl_phi = 0 # ctrl_phi ∈ [-1,1]
 
+class Observation(object):
+    def __init(self):
+        self.pos = [0,0,0,0,0] # x,y,theta,target_x,target_y
+        self.laser_data = []   # float*n
+
 # properties of agent entities
 class Agent(object):
     def __init__(self,agent_prop = None):
@@ -225,14 +230,13 @@ class World(object):
         obs_data = {'time':self.total_time,'obs_data':[]}
         self.update_laser_state()
         for idx_a in range(len(self.agents)):
-            agent_data = []
-            agent_data.append(self.agents[idx_a].state.x)
-            agent_data.append(self.agents[idx_a].state.y)
-            agent_data.append(self.agents[idx_a].state.theta)
-            agent_data.append(self.agents[idx_a].state.target_x)
-            agent_data.append(self.agents[idx_a].state.target_y)
-            agent_data.append(self.agents[idx_a].laser_state)
-            obs_data['obs_data'].append(np.hstack(agent_data))
+            state = self.agents[idx_a].state
+            pos = [state.x, state.y, state.theta, state.target_x, state.target_y]
+            laser_data = self.agents[idx_a].laser_state
+            obs = Observation()
+            obs.pos = pos
+            obs.laser_data = laser_data
+            obs_data['obs_data'].append(obs)
         return obs_data
 
     # update state of the world

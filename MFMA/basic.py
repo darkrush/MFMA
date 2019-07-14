@@ -25,6 +25,11 @@ class Action(object):
         self.ctrl_vel = 0 # ctrl_vel ∈ [-1,1]
         self.ctrl_phi = 0 # ctrl_phi ∈ [-1,1]
 
+class Observation(object):
+    def __init(self):
+        self.pos = [0,0,0,0,0] # x,y,theta,target_x,target_y
+        self.laser_data = []   # float*n
+
 # properties of agent entities
 class Agent(object):
     def __init__(self,agent_prop = None):
@@ -50,6 +55,3 @@ class Agent(object):
             for k,v in agent_prop.items():
                 self.__dict__[k] = v
         self.N_laser = int(self.N_laser)
-
-        self.state = AgentState()
-        self.action = Action()

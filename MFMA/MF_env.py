@@ -114,12 +114,19 @@ class MultiFidelityEnv(Env):
         return obs,reward,done,info
 
     def reset(self):
+        self.nb_crashed = 0
+        self.nb_reached = 0
+        
         self.backend.pause()
         self.backend.reset()
         obs = self.backend.get_obs()
         self.old_state = self.backend.get_state()
         self.total_time = 0
         return obs
+
+    def get_result(self):
+        pass
+
 
     def close(self):
         self.backend.close()

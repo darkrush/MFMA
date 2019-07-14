@@ -71,8 +71,8 @@ class MSE_backend(object):
                         self.world.step()
                 else:
                     self.world.step()
-    def reset(self):
-        self.common_queue.put(['reset',None])
+    #def reset(self):
+    #    self.common_queue.put(['reset',None])
 
     def get_state(self):
         self.common_queue.put(['get_state',None])
@@ -89,10 +89,10 @@ class MSE_backend(object):
         obs = self.data_queue.get()
         return obs
 
-    def set_action(self,action,enable_list= None):
+    def set_action(self,actions,enable_list= None):
         if enable_list is None:
-            enable_list = [True]* len(action)
-        self.common_queue.put(['set_action',(enable_list,action)])
+            enable_list = [True]* len(actions)
+        self.common_queue.put(['set_action',(enable_list,actions)])
 
     def pause(self):
         self.manager_dict['run'] = 'pause'
